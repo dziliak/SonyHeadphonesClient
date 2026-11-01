@@ -127,6 +127,8 @@ namespace mdr
         }
     }
 
+    static constexpr size_t kMDRMaxRecvBufferSize = 64 * 1024;
+
     int MDRHeadphones::Receive()
     {
         char buf[kMDRMaxPacketSize];
@@ -141,6 +143,11 @@ namespace mdr
         MDR_LOG("{}", dump);
 #endif
         mRecvBuf.insert(mRecvBuf.end(), buf, buf + recvd);
+        if (mRecvBuf.size() > kMDRMaxRecvBufferSize)
+        {
+            mRecvBuf.clear();
+            return Fail(MDR_RESULT_ERROR_MALFORMED_PAYLOAD, "Receive buffer exceeded 64 KiB without a complete frame");
+        }
         return r;
     }
 

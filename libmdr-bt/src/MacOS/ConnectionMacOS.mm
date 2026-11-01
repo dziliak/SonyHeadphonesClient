@@ -162,6 +162,14 @@ struct MDRMacState
     std::scoped_lock lock(_state->mutex);
     if (_state->generation != _generation || _state->result != MDR_RESULT_OK)
         return;
+    if (_state->buffer.size() + dataLength > 64 * 1024) {
+        // Nothing consumed 64 KiB of input: treat as a broken peer rather than grow unbounded.
+        _state->buffer.clear();
+        _state->result = MDR_RESULT_ERROR_NET;
+        _state->error = "Receive buffer exceeded 64 KiB";
+        _state->condition.notify_all();
+        return;
+    }
     _state->buffer.insert(_state->buffer.end(), bytes, bytes + dataLength);
     _state->condition.notify_all();
 }
