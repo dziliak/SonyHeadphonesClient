@@ -777,14 +777,25 @@ namespace mdr
             state.mGsParamBool[2].commit();
         }
 
-        if (state.mPairedDeviceConnectMac.pending() ||
-            state.mPairedDeviceDisconnectMac.pending() ||
-            state.mPairedDeviceUnpairMac.pending())
+        for (auto [prop, action] : {
+                 std::pair{&state.mPairedDeviceConnectMac, t2::ActionType::CONNECT},
+                 std::pair{&state.mPairedDeviceDisconnectMac, t2::ActionType::DISCONNECT}})
         {
-            co_return SetLastError(
-                MDR_RESULT_ERROR_NOT_SUPPORTED,
-                "V1 paired-device mutations require a capture-confirmed address layout");
+            if (!prop->pending())
+                continue;
+            if (state.mSupport.contains(t1::FunctionType::PAIRING_DEVICE_MANAGEMENT_CLASSIC_BT) &&
+                prop->mSubmitted.size() == 17)
+            {
+                t2::SetPeripheralExParamPairingDeviceManagementClassicBtConnectionControl control{};
+                control.actionType = action;
+                std::copy_n(prop->mSubmitted.begin(), 17, control.btDeviceAddress.begin());
+                SendCommandACK(t2::SetPeripheralExParamPairingDeviceManagementClassicBtConnectionControl, control);
+            }
+            prop->commit();
         }
+
+        if (state.mPairedDeviceUnpairMac.pending())
+            co_return SetLastError(MDR_RESULT_ERROR_NOT_SUPPORTED, "V1 unpair is not supported");
 
         co_return MDR_EVENT_APPLY_COMPLETE;
     }

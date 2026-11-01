@@ -2204,9 +2204,17 @@ MDRResult mdrHeadphonesSetPairedDevice(
         return MDR_RESULT_INPROGRESS;
     if (!SupportsPairing(*h))
         return MDR_RESULT_ERROR_NOT_SUPPORTED;
-    if (h->mProtocolFamily == Headphones::ProtocolFamily::V1)
-        return MDR_RESULT_ERROR_NOT_SUPPORTED;
     const mdr::String value{id.begin(), id.end()};
+    if (h->mProtocolFamily == Headphones::ProtocolFamily::V1)
+    {
+        // V1 carries the address as the 17 ASCII characters the device itself reports.
+        switch (action->command)
+        {
+        case MDR_PAIRED_DEVICE_CONNECT: h->mDetailsV1.mPairedDeviceConnectMac.stage(value); return MDR_RESULT_OK;
+        case MDR_PAIRED_DEVICE_DISCONNECT: h->mDetailsV1.mPairedDeviceDisconnectMac.stage(value); return MDR_RESULT_OK;
+        default: return MDR_RESULT_ERROR_NOT_SUPPORTED;
+        }
+    }
     switch (action->command)
     {
     case MDR_PAIRED_DEVICE_CONNECT: h->mDetailsV2.mPairedDeviceConnectMac.stage(value); break;
